@@ -1,0 +1,14 @@
+{application, eradio,
+ [{description, "ERlang raDIO"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {eradio_app, []}},
+  {applications,
+   [
+    kernel,
+    stdlib,
+    cowboy
+   ]},
+  {env, []},
+  {modules, []}
+ ]}.
