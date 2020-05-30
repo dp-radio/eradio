@@ -3,9 +3,12 @@
 -behaviour(gen_server).
 
 -include_lib("kernel/include/logger.hrl").
+-include("eradio_source.hrl").
 
 %% API
--export([child_spec/0, start/0, stop/0, start_link/0, next/0]).
+-export([child_spec/0, start/0, stop/0, start_link/0,
+         player_state/0, play/0, pause/0, prev/0, next/0]).
+-export_type([player_state/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -19,8 +22,11 @@
 
 -define(RESPAWN_DELAY_MILLIS, 1000).
 
+-type player_state() :: stopped | {playing, #track{} | unknown}.
+
 -record(state,
-        {source_port = undefined :: port()}).
+        {source_port = undefined :: port(),
+         player_state = stopped :: player_state()}).
 
 %%
 %% API
@@ -44,8 +50,20 @@ stop() ->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+player_state() ->
+    gen_server:call(?SERVER, player_state).
+
+play() ->
+    gen_server:call(?SERVER, {player_command, play}).
+
+pause() ->
+    gen_server:call(?SERVER, {player_command, pause}).
+
+prev() ->
+    gen_server:call(?SERVER, {player_command, prev}).
+
 next() ->
-    gen_server:call(?SERVER, next).
+    gen_server:call(?SERVER, {player_command, next}).
 
 %%
 %% gen_server callbacks
@@ -56,10 +74,30 @@ init([]) ->
     State = spawn_source(#state{}),
     {ok, State}.
 
-handle_call(next, From, State) ->
-    ?LOG_INFO("~1000p requesting next song", [From]),
-    port_command(State#state.source_port, <<1>>),
-    {reply, ok, State};
+handle_call(player_state, _From, State) ->
+    {reply, {ok, State#state.player_state}, State};
+
+handle_call({player_command, PlayerCommand}, From, #state{source_port = SourcePort} = State)
+  when is_port(SourcePort) ->
+    ?LOG_INFO("~1000p requesting player ~s", [From, PlayerCommand]),
+    PlayerCommandByte = case PlayerCommand of
+                            play  -> 1;
+                            pause -> 2;
+                            prev  -> 3;
+                            next  -> 4;
+                            _     -> unknown
+                        end,
+    Reply = case PlayerCommandByte of
+                unknown -> {error, bad_command};
+                _ ->
+                    port_command(State#state.source_port, <<PlayerCommandByte>>),
+                    ok
+            end,
+    {reply, Reply, State};
+
+handle_call({player_command, PlayerCommand}, From, #state{source_port = undefined} = State) ->
+    ?LOG_INFO("~1000p requesting player ~s but player is dead!", [From, PlayerCommand]),
+    {reply, {error, source_dead}, State};
 
 handle_call(Request, From, State) ->
     ?LOG_WARNING("unknown call from ~1000p: ~1000p", [From, Request]),
@@ -70,8 +108,8 @@ handle_cast(Message, State) ->
     {noreply, State}.
 
 handle_info({SourcePort, {data, Data}}, #state{source_port = SourcePort} = State) ->
-    handle_data(Data, State),
-    {noreply, State};
+    NewState = handle_data(Data, State),
+    {noreply, NewState};
 
 handle_info(respawn, #state{source_port = undefined} = State) ->
     NewState = spawn_source(State),
@@ -118,7 +156,11 @@ spawn_source(State) ->
     try open_port({spawn_executable, Exe}, PortSettings) of
         Port ->
             ?LOG_INFO("spawned source ~s: ~1000p", [Exe, Port]),
-            State#state{source_port = Port}
+            case State#state.player_state of
+                {playing, _} -> port_command(Port, <<1>>);
+                _ -> ok
+            end,
+            State#state{source_port = Port, player_state = stopped}
     catch
         _:Reason ->
             ?LOG_WARNING("error spawning source ~s: ~1000p", [Exe, Reason]),
@@ -133,12 +175,17 @@ handle_data(<<1, LevelByte, Message/binary>>, State) ->
                     3 -> info;
                     _ -> debug
                 end,
-    ?LOG(LevelAtom, "~1000p ~s", [State#state.source_port, Message]);
-handle_data(<<2, Data/binary>>, _State) ->
-    [eradio_stream:send_data(Stream, Data) || Stream <- eradio_stream:get_streams()];
-handle_data(<<3>>, _State) ->
-    ?LOG_INFO("playback started: <unknown>");
-handle_data(<<3, Id:128/integer, Name/binary>>, _State) ->
-    ?LOG_INFO("playback started: ~b ~s", [Id, Name]);
-handle_data(<<4>>, _State) ->
-    ?LOG_INFO("playback stopped").
+    ?LOG(LevelAtom, "~1000p ~s", [State#state.source_port, Message]),
+    State;
+handle_data(<<2, Data/binary>>, State) ->
+    [eradio_stream:send_data(Stream, Data) || Stream <- eradio_stream:get_streams()],
+    State;
+handle_data(<<3>>, State) ->
+    ?LOG_INFO("playback started: <unknown>"),
+    State#state{player_state = {playing, unknown}};
+handle_data(<<3, Id:128/integer, Name/binary>>, State) ->
+    ?LOG_INFO("playback started: ~s ~s", [base62:encode(Id, 22), Name]),
+    State#state{player_state = {playing, #track{id = Id, name = Name}}};
+handle_data(<<4>>, State) ->
+    ?LOG_INFO("playback stopped"),
+    State#state{player_state = stopped}.
