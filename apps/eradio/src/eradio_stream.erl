@@ -17,7 +17,10 @@
 -define(PG_GROUP, ?MODULE).
 
 -record(state,
-        {stream_pid :: pid() | undefined}).
+        {stream_pid :: pid() | undefined,
+         sent = 0 :: integer(),
+         acked = 0 :: integer(),
+         dropped = 0 :: integer()}).
 
 %%
 %% API
@@ -45,7 +48,7 @@ get_streams() ->
 %%
 
 init([StreamPid]) ->
-    ?LOG_INFO("stream ~1000p connected", [self()]),
+    ?LOG_INFO("stream connected", []),
     process_flag(trap_exit, true),
     try
         ok = pg:join(?PG_GROUP, self())
@@ -61,12 +64,16 @@ handle_call(Request, From, State) ->
     {reply, unknown_call, State}.
 
 handle_cast({send_data, Data}, State) ->
-    eradio_stream_handler:send(State#state.stream_pid, Data),
-    {noreply, State};
+    NewState = handle_send_data(Data, State),
+    {noreply, NewState};
 
 handle_cast(Message, State) ->
     ?LOG_WARNING("unknown cast: ~1000p", [Message]),
     {noreply, State}.
+
+handle_info({data_ack, DataAcked}, State) ->
+    NewState = handle_data_ack(DataAcked, State),
+    {noreply, NewState};
 
 handle_info({'EXIT', StreamPid, _Reason}, #state{stream_pid = StreamPid} = State) ->
     NewState = State#state{stream_pid = undefined},
@@ -77,9 +84,25 @@ handle_info(Message, State) ->
     {noreply, State}.
 
 terminate(Reason, State) ->
-    ?LOG_INFO("stream ~1000p disconnected: ~1000p", [self(), Reason]),
+    ?LOG_INFO("stream disconnected: ~1000p", [Reason]),
     case State#state.stream_pid of
         undefined -> ok;
         StreamPid -> eradio_stream_handler:stop(StreamPid)
     end,
     ok.
+
+handle_send_data(Data, #state{sent = Sent, acked = Acked}=State) when Sent =< Acked ->
+    case State#state.dropped of
+        0 -> ok;
+        Dropped -> ?LOG_INFO("stream dropped ~b packets", [Dropped])
+    end,
+    NewSent = Sent + 1,
+    eradio_stream_handler:send(State#state.stream_pid, {self(), NewSent}, Data),
+    State#state{sent = NewSent, dropped = 0};
+handle_send_data(_Data, State) ->
+    State#state{dropped = State#state.dropped + 1}.
+
+handle_data_ack(DataAcked, #state{acked = Acked}=State) when DataAcked >= Acked ->
+    State#state{acked = DataAcked};
+handle_data_ack(_DataAcked, State) ->
+    State.
