@@ -13,7 +13,12 @@ start() ->
                        {ok, ListenIp} -> [{listen_ip, ListenIp}]
                    end,
     Port = application:get_env(App, port, 8080),
-    TransportOpts = ListenIpOpts ++ [{port, Port}],
+    SendBuffer = application:get_env(App, sndbuf, 8000),
+    TransportOpts = ListenIpOpts ++ [{port, Port},
+                                     {sndbuf, SendBuffer},
+                                     {send_timeout, 5000},
+                                     {high_watermark, 0},
+                                     {high_msgq_watermark, 1}],
 
     ApiRoute = {"/v1/[...]", eradio_api_handler, []},
     StreamRoute = {"/stream.mp3", eradio_stream_handler, []},
