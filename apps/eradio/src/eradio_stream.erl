@@ -5,7 +5,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/1, send_data/2, get_streams/0]).
+-export([start_link/2, send_data/2, get_streams/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -17,17 +17,18 @@
 -define(PG_GROUP, ?MODULE).
 
 -record(state,
-        {stream_pid :: pid() | undefined,
-         sent = 0 :: integer(),
-         acked = 0 :: integer(),
+        {stream_pid  :: pid() | undefined,
+         id          :: integer(),
+         sent = 0    :: integer(),
+         acked = 0   :: integer(),
          dropped = 0 :: integer()}).
 
 %%
 %% API
 %%
 
-start_link(StreamPid) ->
-    gen_server:start_link(?MODULE, [StreamPid], []).
+start_link(StreamPid, ListenerId) when is_integer(ListenerId) ->
+    gen_server:start_link(?MODULE, [StreamPid, ListenerId], []).
 
 send_data(Pid, Data) ->
     gen_server:cast(Pid, {send_data, Data}).
@@ -47,8 +48,8 @@ get_streams() ->
 %% gen_server callbacks
 %%
 
-init([StreamPid]) ->
-    ?LOG_INFO("stream connected", []),
+init([StreamPid, ListenerId]) ->
+    ?LOG_INFO("stream ~b connected", [ListenerId]),
     process_flag(trap_exit, true),
     try
         ok = pg:join(?PG_GROUP, self())
@@ -57,7 +58,7 @@ init([StreamPid]) ->
             ok = pg2:create(?PG_GROUP),
             ok = pg2:join(?PG_GROUP, self())
     end,
-    {ok, #state{stream_pid = StreamPid}}.
+    {ok, #state{stream_pid = StreamPid, id = ListenerId}}.
 
 handle_call(Request, From, State) ->
     ?LOG_WARNING("unknown call from ~1000p: ~1000p", [From, Request]),
@@ -84,7 +85,7 @@ handle_info(Message, State) ->
     {noreply, State}.
 
 terminate(Reason, State) ->
-    ?LOG_INFO("stream disconnected: ~1000p", [Reason]),
+    ?LOG_INFO("stream ~b disconnected: ~1000p", [State#state.id, Reason]),
     case State#state.stream_pid of
         undefined -> ok;
         StreamPid -> eradio_stream_handler:stop(StreamPid)
@@ -94,7 +95,7 @@ terminate(Reason, State) ->
 handle_send_data(Data, #state{sent = Sent, acked = Acked}=State) when Sent =< Acked ->
     case State#state.dropped of
         0 -> ok;
-        Dropped -> ?LOG_INFO("stream dropped ~b packets", [Dropped])
+        Dropped -> ?LOG_INFO("stream ~b dropped ~b packets", [State#state.id, Dropped])
     end,
     NewSent = Sent + 1,
     eradio_stream_handler:send(State#state.stream_pid, {self(), NewSent}, Data),
