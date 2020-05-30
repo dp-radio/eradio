@@ -3,7 +3,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([send/2, stop/1]).
+-export([send/3, stop/1]).
 
 %% cowboy handler callbacks
 -export([init/2, info/3]).
@@ -12,8 +12,8 @@
 %% API
 %%
 
-send(Pid, Data) ->
-     Pid ! {data, Data}.
+send(Pid, {FromPid, Tag}, Data) ->
+     Pid ! {data, {FromPid, Tag}, Data}.
 
 stop(Pid) ->
     Pid ! eof.
@@ -33,8 +33,9 @@ init(Request, State) ->
     Request2 = cowboy_req:stream_reply(200, ResponseHeaders, Request),
     {cowboy_loop, Request2, State}.
 
-info({data, Data}, Request, State) ->
+info({data, {FromPid, Tag}, Data}, Request, State) ->
     ok = cowboy_req:stream_body(Data, nofin, Request),
+    FromPid ! {data_ack, Tag},
     {ok, Request, State};
 info(eof, Request, State) ->
     {stop, Request, State};
