@@ -5,7 +5,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/2, send_data/2, get_streams/0]).
+-export([start_link/3, send_data/2, get_streams/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -14,10 +14,14 @@
          handle_info/2,
          terminate/2]).
 
+-define(APPLICATION, eradio).
 -define(PG_GROUP, ?MODULE).
+
+-define(MAX_SOCKET_OUT_QUEUE, 8000).
 
 -record(state,
         {stream_pid  :: pid() | undefined,
+         cowboy_req  :: cowboy_req:req(),
          id          :: integer(),
          sent = 0    :: integer(),
          acked = 0   :: integer(),
@@ -27,8 +31,8 @@
 %% API
 %%
 
-start_link(StreamPid, ListenerId) when is_integer(ListenerId) ->
-    gen_server:start_link(?MODULE, [StreamPid, ListenerId], []).
+start_link(StreamPid, CowboyReq, ListenerId) when is_integer(ListenerId) ->
+    gen_server:start_link(?MODULE, [StreamPid, CowboyReq, ListenerId], []).
 
 send_data(Pid, Data) ->
     gen_server:cast(Pid, {send_data, Data}).
@@ -48,7 +52,7 @@ get_streams() ->
 %% gen_server callbacks
 %%
 
-init([StreamPid, ListenerId]) ->
+init([StreamPid, CowboyReq, ListenerId]) ->
     ?LOG_INFO("stream ~b connected", [ListenerId]),
     process_flag(trap_exit, true),
     try
@@ -58,7 +62,7 @@ init([StreamPid, ListenerId]) ->
             ok = pg2:create(?PG_GROUP),
             ok = pg2:join(?PG_GROUP, self())
     end,
-    {ok, #state{stream_pid = StreamPid, id = ListenerId}}.
+    {ok, #state{stream_pid = StreamPid, cowboy_req = CowboyReq, id = ListenerId}}.
 
 handle_call(Request, From, State) ->
     ?LOG_WARNING("unknown call from ~1000p: ~1000p", [From, Request]),
@@ -93,15 +97,29 @@ terminate(Reason, State) ->
     ok.
 
 handle_send_data(Data, #state{sent = Sent, acked = Acked}=State) when Sent =< Acked ->
+    case eradio_server_stream_h:socket_out_queue(State#state.cowboy_req, 10) of
+        {ok, {SocketOutQueue, SocketSendBuffer}} when SocketOutQueue =< SocketSendBuffer ->
+            do_send_data(Data, State);
+        {ok, {SocketOutQueue, SocketSendBuffer}} ->
+            case State#state.dropped of
+                0 -> ?LOG_INFO("stream ~b dropping packets due to socket out queue of ~b bytes with send buffer ~b bytes", [State#state.id, SocketOutQueue, SocketSendBuffer]);
+                _ -> ok
+            end,
+            State#state{dropped = State#state.dropped + 1};
+        {error, SocketOutQueueError} ->
+            State
+    end;
+handle_send_data(_Data, State) ->
+    State#state{dropped = State#state.dropped + 1}.
+
+do_send_data(Data, State) ->
     case State#state.dropped of
         0 -> ok;
         Dropped -> ?LOG_INFO("stream ~b dropped ~b packets", [State#state.id, Dropped])
     end,
-    NewSent = Sent + 1,
+    NewSent = State#state.sent + 1,
     eradio_stream_handler:send(State#state.stream_pid, {self(), NewSent}, Data),
-    State#state{sent = NewSent, dropped = 0};
-handle_send_data(_Data, State) ->
-    State#state{dropped = State#state.dropped + 1}.
+    State#state{sent = NewSent, dropped = 0}.
 
 handle_data_ack(DataAcked, #state{acked = Acked}=State) when DataAcked >= Acked ->
     State#state{acked = DataAcked};

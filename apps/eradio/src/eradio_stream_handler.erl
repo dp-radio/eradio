@@ -46,7 +46,7 @@ info(Message, _Request, _State) ->
 %%
 
 start_streaming(Request, ListenerId, State) ->
-    eradio_stream:start_link(self(), ListenerId),
+    eradio_stream:start_link(self(), Request, ListenerId),
     ResponseHeaders =
         #{<<"content-type">>  => <<"audio/mpeg">>,
           <<"cache-control">> => <<"no-cache, no-store">>,
