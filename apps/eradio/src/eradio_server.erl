@@ -41,6 +41,8 @@ start() ->
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
     ProtocolOpts = #{env => #{dispatch => Dispatch},
+                     idle_timeout => infinity,
+                     inactivity_timeout => infinity,
                      stream_handlers => [cowboy_stream_h, eradio_server_stream_h]},
 
     ranch:start_listener(?MODULE, ranch_tcp, TransportOpts, eradio_server, ProtocolOpts).
