@@ -4,6 +4,7 @@
 
 %% API
 -export([start/0, stop/0, restart/0]).
+-export([application/0, listen_ip/0, listen_port/0, sndbuf/0, webroot/0]).
 
 %% application callbacks
 -export([start/2, stop/1]).
@@ -23,6 +24,21 @@ stop() ->
 restart() ->
     stop(),
     start().
+
+application() ->
+    ?APP.
+
+listen_ip() ->
+    application:get_env(?APP, listen_ip).
+
+listen_port() ->
+    application:get_env(?APP, port, 8080).
+
+sndbuf() ->
+    application:get_env(?APP, sndbuf, 8000).
+
+webroot() ->
+    application:get_env(?APP, webroot).
 
 %%
 %% application callbacks

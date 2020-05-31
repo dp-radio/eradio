@@ -10,8 +10,6 @@
 %% cowboy_stream callbacks
 -export([init/3, data/4, info/3, terminate/3, early_error/5]).
 
--define(APPLICATION, eradio).
-
 -record(state,
         {next   :: any(),
          sock   :: port(),
@@ -74,10 +72,7 @@ init_module() ->
     end.
 
 nif_lib_path() ->
-    App = case application:get_application(?MODULE) of
-              {ok, FoundApp} -> FoundApp;
-              undefined -> ?APPLICATION
-          end,
+    App = eradio_app:application(),
     case code:priv_dir(App) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", priv, App])) of

@@ -9,16 +9,19 @@
 %% ranch callbacks
 -export([start_link/3]).
 
+%%
+%% public API
+%%
+
 start() ->
     ?LOG_INFO(?MODULE_STRING " starting on ~p", [node()]),
-    {ok, App} = application:get_application(),
 
-    ListenIpOpts = case application:get_env(App, listen_ip) of
+    ListenIpOpts = case eradio_app:listen_ip() of
                        undefined      -> [];
                        {ok, ListenIp} -> [{listen_ip, ListenIp}]
                    end,
-    Port = application:get_env(App, port, 8080),
-    SendBuffer = application:get_env(App, sndbuf, 8000),
+    Port = eradio_app:listen_port(),
+    SendBuffer = eradio_app:sndbuf(),
     SocketOpts = ListenIpOpts ++
         [{high_watermark, 0},
          {high_msgq_watermark, 1},
@@ -26,19 +29,19 @@ start() ->
          {sndbuf, SendBuffer},
          {send_timeout, 5000}],
     TransportOpts = #{connection_type => supervisor,
-                      socket_opts => SocketOpts,
-                      stream_handlers => [cowboy_stream_h, eradio_server_stream_h]},
+                      socket_opts => SocketOpts},
 
     ApiRoute = {"/v1/[...]", eradio_api_handler, []},
     StreamRoute = {"/stream.mp3", eradio_stream_handler, []},
-    WebrootRoute = case application:get_env(App, webroot) of
-                       undefined     -> {"/[index.html]", cowboy_static, {priv_file, App, "default_index.html"}};
+    WebrootRoute = case eradio_app:webroot() of
+                       undefined     -> {"/[index.html]", cowboy_static, {priv_file, eradio_app:application(), "default_index.html"}};
                        {ok, Webroot} -> {"/[...]", cowboy_static, {dir, Webroot}}
                    end,
     Routes = [ApiRoute, StreamRoute, WebrootRoute],
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
-    ProtocolOpts = #{env => #{dispatch => Dispatch}},
+    ProtocolOpts = #{env => #{dispatch => Dispatch},
+                     stream_handlers => [cowboy_stream_h, eradio_server_stream_h]},
 
     ranch:start_listener(?MODULE, ranch_tcp, TransportOpts, eradio_server, ProtocolOpts).
 
