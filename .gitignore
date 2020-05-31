@@ -18,4 +18,5 @@ _build
 rebar3.crashdump
 *~
 
+apps/eradio/priv/*.so
 apps/eradio/priv/source
