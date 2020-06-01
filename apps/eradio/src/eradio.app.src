@@ -1,7 +1,7 @@
 {application, eradio,
  [{description, "ERlang raDIO"},
   {vsn, "0.1.0"},
-  {registered, []},
+  {registered, [eradio_source]},
   {mod, {eradio_app, []}},
   {applications,
    [
