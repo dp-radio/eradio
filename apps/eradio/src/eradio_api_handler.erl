@@ -17,21 +17,33 @@ init(Request, State) ->
           <<"expires">>       => <<"Fri, 1 Jan 1999 12:00:00 AM GMT">>,
           <<"pragma">>        => <<"no-cache">>,
           <<"access-control-allow-origin">> => <<"*">>},
-    Request2 = case handle_request(Request) of
-        {ok, ResponseBody} -> cowboy_req:reply(200, ResponseHeaders, ResponseBody, Request);
-        not_found          -> cowboy_req:reply(404, ResponseHeaders, <<>>, Request)
-    end,
-    {ok, Request2, State}.
+    QueryString = maps:from_list(cowboy_req:parse_qs(Request)),
+    #{method := Method, path := Path} = Request,
+    case handle_request(Request, QueryString) of
+        {ok, ResponseBody} -> {ok, cowboy_req:reply(200, ResponseHeaders, ResponseBody, Request), State};
+        not_found          -> {ok, cowboy_req:reply(404, ResponseHeaders, <<>>, Request), State};
 
-handle_request(#{path := <<"/v1/metadata">>}) ->
+        {invalid, InvalidReason} ->
+            ?LOG_INFO("invalid ~s ~s request: ~1000p", [Method, Path, InvalidReason]),
+            {ok, cowboy_req:reply(400, #{}, <<>>, Request), State}
+    end.
+
+handle_request(#{path := <<"/v1/metadata">>, method := <<"GET">>}, _QueryString) ->
     CurrentTrackMap = case eradio_source:player_state() of
                           {ok, PlayerState} -> current_track_response(PlayerState);
                           _                 -> #{}
                       end,
-    ListenerCount = integer_to_binary(length(eradio_stream:get_streams())),
-    VetoCount = 0, %% XXX
-    {ok, jsone:encode(metadata_response(CurrentTrackMap, ListenerCount, VetoCount))};
-handle_request(_Request) ->
+    {ok, {Listeners, Vetoes}} = eradio_source:vetoes(),
+    {ok, jsone:encode(metadata_response(CurrentTrackMap, length(Listeners), map_size(Vetoes)))};
+
+handle_request(#{path := <<"/v1/veto">>, method := <<"PUT">>}, #{<<"listener_id">> := <<ListenerIdBin/binary>>}) ->
+    try erlang:binary_to_integer(ListenerIdBin) of
+        ListenerId ->
+            eradio_source:veto(ListenerId),
+            {ok, <<"{}">>}
+    catch error:Reason -> {invalid, Reason} end;
+
+handle_request(_Request, _QueryString) ->
     not_found.
 
 metadata_response(CurrentTrackMap, ListenerCount, VetoCount) ->

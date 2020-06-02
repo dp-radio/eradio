@@ -5,7 +5,8 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/3, send_data/2, get_streams/0]).
+-export([start_link/3, send_data/2]).
+-export_type([listener_id/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -15,9 +16,10 @@
          terminate/2]).
 
 -define(APPLICATION, eradio).
--define(PG_GROUP, ?MODULE).
 
 -define(MAX_SOCKET_OUT_QUEUE, 8000).
+
+-type listener_id() :: integer().
 
 -record(state,
         {stream_pid  :: pid() | undefined,
@@ -37,17 +39,6 @@ start_link(StreamPid, CowboyReq, ListenerId) when is_integer(ListenerId) ->
 send_data(Pid, Data) ->
     gen_server:cast(Pid, {send_data, Data}).
 
-get_streams() ->
-    try
-        pg:get_members(?PG_GROUP)
-    catch
-        error:undef ->
-            case pg2:get_members(?PG_GROUP) of
-                Pids when is_list(Pids) -> Pids;
-                {error, {no_such_group, _}} -> []
-            end
-    end.
-
 %%
 %% gen_server callbacks
 %%
@@ -55,13 +46,7 @@ get_streams() ->
 init([StreamPid, CowboyReq, ListenerId]) ->
     ?LOG_INFO("stream ~b connected", [ListenerId]),
     process_flag(trap_exit, true),
-    try
-        ok = pg:join(?PG_GROUP, self())
-    catch
-        error:undef ->
-            ok = pg2:create(?PG_GROUP),
-            ok = pg2:join(?PG_GROUP, self())
-    end,
+    ok = eradio_stream_manager:join(ListenerId),
     {ok, #state{stream_pid = StreamPid, cowboy_req = CowboyReq, id = ListenerId}}.
 
 handle_call(Request, From, State) ->
