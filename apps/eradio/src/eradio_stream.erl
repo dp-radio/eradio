@@ -92,7 +92,7 @@ handle_send_data(Data, #state{sent = Sent, acked = Acked}=State) when Sent =< Ac
             end,
             State#state{dropped = State#state.dropped + 1};
         {error, _SocketOutQueueError} ->
-            State
+            do_send_data(Data, State)
     end;
 handle_send_data(_Data, State) ->
     State#state{dropped = State#state.dropped + 1}.
