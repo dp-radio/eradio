@@ -69,6 +69,10 @@ handle_info({'EXIT', StreamPid, _Reason}, #state{stream_pid = StreamPid} = State
     NewState = State#state{stream_pid = undefined},
     {stop, normal, NewState};
 
+%% ignore late replies from eradio_server_stream_h:socket_out_queue
+handle_info({Ref, _}, State) when is_reference(Ref) ->
+    {noreply, State};
+
 handle_info(Message, State) ->
     ?LOG_WARNING("unknown message: ~1000p", [Message]),
     {noreply, State}.

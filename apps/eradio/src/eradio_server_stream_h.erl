@@ -36,7 +36,7 @@ socket_out_queue(Request, Timeout) ->
 -spec init(cowboy_stream:streamid(), cowboy_req:req(), cowboy:opts()) -> {cowboy_stream:commands(), any()}.
 init(StreamId, Req, Opts) ->
     Socket = maps:get(eradio_sock, Opts),
-    {ok, [{sndbuf, SendBuffer}]} = inet:getopts(Socket, [sndbuf]),
+    SendBuffer = get_send_buffer(Socket),
     {NextCommands, Next} = cowboy_stream:init(StreamId, Req, Opts),
     {NextCommands, #state{next = Next, sock = Socket, sndbuf = SendBuffer}}.
 
@@ -82,6 +82,12 @@ nif_lib_path() ->
         AppPrivDir -> filename:join([AppPrivDir, App])
     end.
 
+get_send_buffer(Socket) ->
+    case inet:getopts(Socket, [sndbuf]) of
+        {ok, [{sndbuf, SendBuffer}]} -> SendBuffer;
+        {error, einval} -> exit(normal)
+    end.
+
 handle_info(_StreamId, {socket_out_queue, {From, Tag}}, State) ->
     Reply = do_socket_out_queue(State),
     From ! {Tag, Reply},
@@ -91,8 +97,10 @@ handle_info(_StreamId, _Info, State) ->
 
 do_socket_out_queue(State) ->
     try
-        {ok, Fd} = prim_inet:getfd(State#state.sock),
-         nif_socket_out_queue(Fd)
+        case prim_inet:getfd(State#state.sock) of
+            {ok, Fd} -> nif_socket_out_queue(Fd);
+            {error, GetFdError} -> {error, GetFdError}
+        end
     of
         {ok, SocketOutQueue} -> {ok, {SocketOutQueue, State#state.sndbuf}};
         {error, Error} -> {error, Error}
