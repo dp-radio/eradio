@@ -49,8 +49,8 @@ handle_request(_Request, _QueryString) ->
 metadata_response(CurrentTrackMap, ListenerCount, VetoCount) ->
     CurrentTrackMap#{listener_count => ListenerCount, veto_count => VetoCount}.
 
-current_track_response({playing, #track{id = Id, name = Name}}) ->
-    #{current_track => #{id => base62:encode(Id, 22), name => Name}};
+current_track_response({playing, #track{uri = Uri, name = Name}}) ->
+    #{current_track => #{uri => Uri, name => Name}};
 current_track_response({playing, unknown}) ->
     #{};
 current_track_response(stopped) ->

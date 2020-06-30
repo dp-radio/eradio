@@ -1,3 +1,3 @@
 -record(track,
-        {id :: integer(),
+        {uri  :: binary(),
          name :: binary()}).
