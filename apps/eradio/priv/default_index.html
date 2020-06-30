@@ -110,7 +110,7 @@
           if (metadata != null) {
               if (metadata.current_track != null) {
                   let metadataLink = document.createElement("a");
-                  metadataLink.href = "https://open.spotify.com/track/"+metadata.current_track.id;
+                  metadataLink.href = metadata.current_track.uri;
                   metadataLink.target = "_blank";
                   metadataLink.textContent = metadata.current_track.name;
                   metadataDiv.appendChild(metadataLink);
