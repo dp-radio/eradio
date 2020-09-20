@@ -1,0 +1,19 @@
+Description=ERlang raDIO
+Wants=sound.target
+After=sound.target
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/erl -config config/sys.config -noinput -sname eradio@localhost -kernel inet_dist_use_interface '{127,0,0,1}' -s eradio_app
+Environment="ERL_LIBS=_build/default/lib"
+WorkingDirectory=/var/lib/eradio
+StateDirectory=/var/lib/eradio
+User=eradio
+DynamicUser=yes
+Restart=always
+RestartSec=12
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=default.target
