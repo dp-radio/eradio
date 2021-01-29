@@ -22,7 +22,7 @@ start_link() ->
 %%
 
 init([]) ->
-    Mods = [eradio_stream_manager, eradio_source],
+    Mods = [eradio_stream_manager, eradio_source, eradio_websocket_manager],
     ChildSpecs = [Mod:child_spec() || Mod <- Mods],
     SupervisorFlags =
         #{strategy => one_for_all,

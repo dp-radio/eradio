@@ -88,6 +88,7 @@ terminate(Reason, _State) ->
 handle_join(ListenerId, Pid, _From, State) ->
     monitor(process, Pid),
     add_stream(#eradio_stream{id = ListenerId, pid = Pid}),
+    eradio_websocket_manager:send_notify(),
     {reply, ok, State}.
 
 handle_send_data(Data, _From, State) ->
@@ -101,6 +102,7 @@ handle_stream_down(Pid, Reason, State) ->
     case ets:match_object(?TABLE, #eradio_stream{id = '_', pid = Pid}) of
         [Stream] ->
             ets:delete(?TABLE, Stream#eradio_stream.id),
+            eradio_websocket_manager:send_notify(),
             ?LOG_INFO("stream ~p down: ~1000p", [Stream#eradio_stream.id, Reason]);
         [] ->
             ?LOG_INFO("unknown stream ~p down: ~1000p", [Pid, Reason])

@@ -30,7 +30,11 @@ export async function veto(listenerId: number) {
     await apiFetch("/v1/veto?listener_id="+listenerId, {method: "PUT"});
 }
 
-export function streamPath(_format: StreamFormat, listenerId: number, timeMs: number) {
+export function notifyWsUri() {
+    return "/ws";
+}
+
+export function streamUri(_format: StreamFormat, listenerId: number, timeMs: number) {
     return "/stream.mp3?listener_id="+listenerId+"&time="+timeMs;
 }
 

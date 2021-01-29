@@ -204,6 +204,7 @@ handle_veto(ListenerId, _From, State) ->
         unknown -> ?LOG_INFO("listener ~b vetoed <unknown>")
     end,
     NewState = maybe_veto_skip(State#state{vetoes = (State#state.vetoes)#{ListenerId => true}}),
+    eradio_websocket_manager:send_notify(),
     {reply, ok, NewState}.
 
 maybe_veto_skip(#state{player_state = stopped}=State) ->
@@ -248,13 +249,17 @@ handle_new_player_state(PlayerState, #state{player_state = PlayerState}=State) -
     State;
 handle_new_player_state({playing, unknown}, State) ->
     ?LOG_INFO("playback started: <unknown>"),
+    eradio_websocket_manager:send_notify(),
     State#state{player_state = {playing, unknown}, current_track = unknown, vetoes = #{}};
 handle_new_player_state({playing, #track{uri = TrackUri}=Track}, #state{current_track = #track{uri = TrackUri}}=State) ->
     ?LOG_INFO("playback resumed: ~s ~s", [Track#track.uri, Track#track.name]),
+    eradio_websocket_manager:send_notify(),
     State#state{player_state = {playing, Track}};
 handle_new_player_state({playing, #track{}=Track}, State) ->
     ?LOG_INFO("playback started: ~s ~s", [Track#track.uri, Track#track.name]),
+    eradio_websocket_manager:send_notify(),
     State#state{player_state = {playing, Track}, current_track = Track, vetoes = #{}};
 handle_new_player_state(stopped, State) ->
     ?LOG_INFO("playback stopped"),
+    eradio_websocket_manager:send_notify(),
     State#state{player_state = stopped, vetoes = #{}}.

@@ -11,7 +11,10 @@ export async function metadata() {
 export async function veto(listenerId) {
     await apiFetch("/v1/veto?listener_id=" + listenerId, { method: "PUT" });
 }
-export function streamPath(_format, listenerId, timeMs) {
+export function notifyWsUri() {
+    return "/ws";
+}
+export function streamUri(_format, listenerId, timeMs) {
     return "/stream.mp3?listener_id=" + listenerId + "&time=" + timeMs;
 }
 async function apiFetch(resource, init) {
