@@ -144,7 +144,13 @@ class MetadataUI {
     refresh(metadata: Metadata) {
         if (metadata != null) {
             if (metadata.current_track != null) {
-                this.metadataSong.href = metadata.current_track.uri;
+                const [scheme, ...uri_rest] = metadata.current_track.uri.split(':');
+                if (scheme === "http" || scheme == "https") {
+                    this.metadataSong.href = metadata.current_track.uri;
+                } else {
+                    const [uri_type, uri_id] = uri_rest;
+                    this.metadataSong.href = "https://open." + scheme + ".com/" + uri_type + "/" + uri_id;
+                }
                 this.metadataSong.target = "_blank";
                 this.metadataSong.textContent = metadata.current_track.name;
 
