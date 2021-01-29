@@ -34,7 +34,8 @@ start() ->
     ApiRoute = {"/v1/[...]", eradio_api_handler, []},
     StreamRoute = {"/stream.mp3", eradio_stream_handler, []},
     WebrootRoutes = case eradio_app:webroot() of
-                        undefined    -> [{"/[index.html]", cowboy_static, {priv_file, eradio_app:application(), "default_index.html"}}];
+                        undefined    -> [{"/", cowboy_static, {priv_file, eradio_app:application(), "htdocs/index.html"},
+                                          {"/[...]", cowboy_static, {priv_dir, amongerl_app:application(), "htdocs"}}}];
                        {ok, Webroot} -> [{"/", cowboy_static, {file, filename:join(Webroot, "index.html")}},
                                          {"/[...]", cowboy_static, {dir, Webroot}}]
                    end,
