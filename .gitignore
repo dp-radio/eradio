@@ -17,6 +17,7 @@ _build
 *.iml
 rebar3.crashdump
 *~
+.log
 
 apps/eradio/priv/*.so
 apps/eradio/priv/source
