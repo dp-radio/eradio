@@ -31,7 +31,7 @@ export async function veto(listenerId: number) {
 }
 
 export function notifyWsUri() {
-    return "/ws";
+    return "/v1/ws/notify";
 }
 
 export function streamUri(_format: StreamFormat, listenerId: number, timeMs: number) {
