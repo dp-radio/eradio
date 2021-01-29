@@ -21,12 +21,16 @@ init(Request, State) ->
     #{method := Method, path := Path} = Request,
     case handle_request(Request, QueryString) of
         {ok, ResponseBody} -> {ok, cowboy_req:reply(200, ResponseHeaders, ResponseBody, Request), State};
+        {websocket, Arg}   -> {eradio_websocket_handler, Request, Arg};
         not_found          -> {ok, cowboy_req:reply(404, ResponseHeaders, <<>>, Request), State};
 
         {invalid, InvalidReason} ->
             ?LOG_INFO("invalid ~s ~s request: ~1000p", [Method, Path, InvalidReason]),
             {ok, cowboy_req:reply(400, #{}, <<>>, Request), State}
     end.
+
+handle_request(#{path := <<"/v1/ws/notify">>}, _QueryString) ->
+    {websocket, eradio_websocket:start_notify_opts()};
 
 handle_request(#{path := <<"/v1/metadata">>, method := <<"GET">>}, _QueryString) ->
     CurrentTrackMap = case eradio_source:player_state() of

@@ -5,7 +5,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/1, send_notify/1, recv/2]).
+-export([start_notify_opts/0, start_link/2, send_notify/1, recv/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -21,8 +21,12 @@
 %% API
 %%
 
-start_link(WebsocketPid) ->
-    gen_server:start_link(?MODULE, [WebsocketPid], []).
+-spec start_notify_opts() -> any().
+start_notify_opts() ->
+    notify_websocket.
+
+start_link(WebsocketPid, Arg) ->
+    gen_server:start_link(?MODULE, {WebsocketPid, Arg}, []).
 
 send_notify(Pid) ->
     gen_server:cast(Pid, send_notify).
@@ -34,10 +38,13 @@ recv(Pid, Message) ->
 %% gen_server callbacks
 %%
 
-init([WebsocketPid]) ->
+init({WebsocketPid, Arg}) ->
     ?LOG_INFO("websocket ~1000p connected", [WebsocketPid]),
     process_flag(trap_exit, true),
-    ok = eradio_websocket_manager:join(),
+    case Arg of
+        notify_websocket ->
+            ok = eradio_websocket_manager:join()
+    end,
     {ok, #state{websocket_pid = WebsocketPid}}.
 
 handle_call({recv, Message}, _From, State) ->

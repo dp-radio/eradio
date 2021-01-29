@@ -31,7 +31,6 @@ start() ->
     TransportOpts = #{connection_type => supervisor,
                       socket_opts => SocketOpts},
 
-    WebsocketRoute = {"/ws", eradio_websocket_handler, {}},
     ApiRoute = {"/v1/[...]", eradio_api_handler, []},
     StreamRoute = {"/stream.mp3", eradio_stream_handler, []},
     WebrootRoutes = case eradio_app:webroot() of
@@ -40,7 +39,7 @@ start() ->
                        {ok, Webroot} -> [{"/", cowboy_static, {file, filename:join(Webroot, "index.html")}},
                                          {"/[...]", cowboy_static, {dir, Webroot}}]
                    end,
-    Routes = [WebsocketRoute, ApiRoute, StreamRoute] ++ WebrootRoutes,
+    Routes = [ApiRoute, StreamRoute] ++ WebrootRoutes,
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
     ProtocolOpts = #{env => #{dispatch => Dispatch},

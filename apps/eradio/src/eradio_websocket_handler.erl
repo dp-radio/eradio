@@ -1,12 +1,13 @@
 -module(eradio_websocket_handler).
+-behaviour(cowboy_sub_protocol).
 
 -include_lib("kernel/include/logger.hrl").
 
 %% API
 -export([stop/1, send/2]).
 
-%% cowboy handler callbacks
--export([init/2]).
+%% cowboy_sub_protocol callbacks
+-export([upgrade/4, upgrade/5]).
 
 %% cowboy websocket callbacks
 -export([websocket_init/1, websocket_handle/2, websocket_info/2]).
@@ -28,19 +29,28 @@ send(Pid, Messages) ->
     Pid ! {send, Messages}.
 
 %%
-%% cowboy handler callbacks
+%% cowboy_sub_protocol callbacks
 %%
 
-init(Request, {}) ->
+-spec upgrade(Req, Env, module(), any()) ->
+    {ok, Req, Env} | {suspend, module(), atom(), [any()]} | {stop, Req}
+        when Req::cowboy_req:req(), Env::cowboy_middleware:env().
+upgrade(Request, Env, Module, Arg) ->
+    upgrade(Request, Env, Module, Arg, ignored).
+
+-spec upgrade(Req, Env, module(), any(), any()) ->
+    {ok, Req, Env} | {suspend, module(), atom(), [any()]} | {stop, Req}
+        when Req::cowboy_req:req(), Env::cowboy_middleware:env().
+upgrade(Request, Env, _Module, Arg, _Opts) ->
     WebsocketOpts = #{max_frame_size => ?FRAME_SIZE_MAX, idle_timeout => ?IDLE_TIMEOUT_MS},
-    {cowboy_websocket, Request, {}, WebsocketOpts}.
+    cowboy_websocket:upgrade(Request, Env, ?MODULE, Arg, WebsocketOpts).
 
 %%
 %% cowboy websocket callbacks
 %%
 
-websocket_init({}) ->
-    {ok, Pid} = eradio_websocket:start_link(self()),
+websocket_init(Arg) ->
+    {ok, Pid} = eradio_websocket:start_link(self(), Arg),
     {ok, #state{pid = Pid}}.
 
 websocket_handle(Frame, State) ->

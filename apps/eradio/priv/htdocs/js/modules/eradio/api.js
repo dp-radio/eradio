@@ -12,7 +12,7 @@ export async function veto(listenerId) {
     await apiFetch("/v1/veto?listener_id=" + listenerId, { method: "PUT" });
 }
 export function notifyWsUri() {
-    return "/ws";
+    return "/v1/ws/notify";
 }
 export function streamUri(_format, listenerId, timeMs) {
     return "/stream.mp3?listener_id=" + listenerId + "&time=" + timeMs;
