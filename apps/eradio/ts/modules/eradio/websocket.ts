@@ -65,8 +65,12 @@ function open(path: string) {
 }
 
 function ping(ws: WebSocket) {
-    ws.send('');
-    setTimeout(() => ping(ws), 1000);
+    if (ws.readyState == WebSocket.OPEN) {
+        ws.send('');
+    }
+    if (ws.readyState != WebSocket.CLOSED) {
+        setTimeout(() => ping(ws), 1000);
+    }
 }
 
 async function sleep(delay_ms: number): Promise<void> {
