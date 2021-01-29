@@ -200,7 +200,7 @@ handle_veto(ListenerId, _From, #state{vetoes = Vetoes} = State) when erlang:is_m
     {reply, ok, NewState};
 handle_veto(ListenerId, _From, State) ->
     case State#state.current_track of
-        #track{uri = TrackUri} -> ?LOG_INFO("listener ~b vetoed ~b", [ListenerId, TrackUri]);
+        #track{uri = TrackUri} -> ?LOG_INFO("listener ~b vetoed ~s", [ListenerId, TrackUri]);
         unknown -> ?LOG_INFO("listener ~b vetoed <unknown>")
     end,
     NewState = maybe_veto_skip(State#state{vetoes = (State#state.vetoes)#{ListenerId => true}}),
