@@ -31,15 +31,16 @@ start() ->
     TransportOpts = #{connection_type => supervisor,
                       socket_opts => SocketOpts},
 
+    WebsocketRoute = {"/ws", eradio_websocket_handler, {}},
     ApiRoute = {"/v1/[...]", eradio_api_handler, []},
     StreamRoute = {"/stream.mp3", eradio_stream_handler, []},
     WebrootRoutes = case eradio_app:webroot() of
                         undefined    -> [{"/", cowboy_static, {priv_file, eradio_app:application(), "htdocs/index.html"},
-                                          {"/[...]", cowboy_static, {priv_dir, amongerl_app:application(), "htdocs"}}}];
+                                          {"/[...]", cowboy_static, {priv_dir, eradio_app:application(), "htdocs"}}}];
                        {ok, Webroot} -> [{"/", cowboy_static, {file, filename:join(Webroot, "index.html")}},
                                          {"/[...]", cowboy_static, {dir, Webroot}}]
                    end,
-    Routes = [ApiRoute, StreamRoute] ++ WebrootRoutes,
+    Routes = [WebsocketRoute, ApiRoute, StreamRoute] ++ WebrootRoutes,
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
     ProtocolOpts = #{env => #{dispatch => Dispatch},

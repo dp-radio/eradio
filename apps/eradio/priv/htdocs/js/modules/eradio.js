@@ -1,7 +1,8 @@
 import * as Api from './eradio/api.js';
+import * as WebSocketUtil from './eradio/websocket.js';
 import { PlayerUI } from './eradio/ui.js';
 export { ERadio };
-const METADATA_REFRESH_INTERVAL = 1000;
+const METADATA_REFRESH_INTERVAL = 50;
 class ERadio {
     constructor() {
         this.lastMetadataRefresh = 0;
@@ -10,12 +11,43 @@ class ERadio {
         this.playerUI = new PlayerUI();
     }
     async main() {
-        await this.refreshMetadata();
         this.playerUI.playButton.onclick = _ => this.tryLoadPlayer();
         this.playerUI.vetoButton.onclick = _ => this.veto();
         this.playerUI.stream.media.onstalled = _ => this.playerStalled();
         this.playerUI.stream.media.onsuspend = _ => this.playerSuspended();
         this.playerUI.stream.media.ontimeupdate = _ => this.playerUI.refreshPlayerStatus();
+        this.refreshMetadata();
+        WebSocketUtil.connectForever(Api.notifyWsUri(), ws => this.handleNotifyWsConnected(ws), event => this.handleNotifyWsEvent(event));
+    }
+    handleNotifyWsConnected(_ws) {
+        console.debug('connected to notify websocket');
+        this.refreshMetadata();
+    }
+    async handleNotifyWsEvent(event) {
+        if (event instanceof MessageEvent) {
+            await this.handleNotifyWsMessage(event.data);
+        }
+        else if (event instanceof CloseEvent) {
+            console.debug('notify websocket closed for reason ' + event.code + ': ' + event.reason);
+        }
+        else {
+            console.debug('error on notify websocket: ', event);
+        }
+    }
+    async handleNotifyWsMessage(message) {
+        if (message instanceof Blob) {
+            message = await message.text();
+        }
+        if (message === '') {
+            return;
+        }
+        message = JSON.parse(message);
+        if (message.action == "notify") {
+            this.refreshMetadata();
+        }
+        else {
+            console.warn("unknown notify websocket message: ", message);
+        }
     }
     playerStalled() {
         console.log("playback stalled...");
@@ -25,7 +57,7 @@ class ERadio {
         console.log("playback suspended...");
     }
     tryLoadPlayer() {
-        this.playerUI.tryLoad(Api.streamPath("mp3", this.listenerId, Date.now()));
+        this.playerUI.tryLoad(Api.streamUri("mp3", this.listenerId, Date.now()));
     }
     scheduleRefreshMetadata() {
         const elapsed = Math.abs(Date.now() - this.lastMetadataRefresh);
@@ -52,7 +84,6 @@ class ERadio {
             this.refreshMetadataTimer = null;
         }
         this.lastMetadataRefresh = Date.now();
-        this.scheduleRefreshMetadata();
     }
     async veto() {
         await Api.veto(this.listenerId);
