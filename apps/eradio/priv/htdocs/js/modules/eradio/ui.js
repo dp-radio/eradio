@@ -103,6 +103,7 @@ class MetadataUI {
         this.metadataNoSong = subelement(this.metadata, '.eradio_metadata_no_song', HTMLElement);
         this.listenerCount = element('#eradio_listener_count', HTMLElement);
         this.vetoCount = element('#eradio_veto_count', HTMLElement);
+        this.title = document.title;
     }
     refresh(metadata) {
         if (metadata != null) {
@@ -117,10 +118,26 @@ class MetadataUI {
                 }
                 this.metadataSong.target = "_blank";
                 this.metadataSong.textContent = metadata.current_track.name;
+                if ('mediaSession' in navigator) {
+                    //@ts-ignore
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: metadata.current_track.name,
+                    });
+                    //@ts-ignore
+                    navigator.mediaSession.playbackState = 'playing';
+                }
+                document.title = metadata.current_track.name + ' - ' + this.title;
                 this.metadataNoSong.style.display = "none";
                 this.metadataSong.style.display = "";
             }
             else {
+                if ('mediaSession' in navigator) {
+                    //@ts-ignore
+                    navigator.mediaSession.metadata = null;
+                    //@ts-ignore
+                    navigator.mediaSession.playbackState = 'paused';
+                }
+                document.title = this.title;
                 this.metadataSong.style.display = "none";
                 this.metadataNoSong.style.display = "";
             }
