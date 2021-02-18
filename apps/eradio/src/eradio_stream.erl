@@ -46,7 +46,7 @@ send_data(Pid, Data) ->
 init([StreamPid, CowboyReq, ListenerId]) ->
     ?LOG_INFO("stream ~b connected", [ListenerId]),
     process_flag(trap_exit, true),
-    ok = eradio_stream_manager:join(ListenerId),
+    ok = eradio_stream_manager:join(?MODULE, ListenerId),
     {ok, #state{stream_pid = StreamPid, cowboy_req = CowboyReq, id = ListenerId}}.
 
 handle_call(Request, From, State) ->

@@ -4,7 +4,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([child_spec/0, start_link/0, join/1, send_data/1, listener_ids/0]).
+-export([child_spec/0, start_link/0, join/2, send_data/1, listener_ids/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -18,7 +18,7 @@
 
 -record(state, {}).
 
--record(eradio_stream, {id, pid}).
+-record(eradio_stream, {id, module, pid}).
 
 %%
 %% API
@@ -35,8 +35,8 @@ child_spec() ->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-join(ListenerId) ->
-    gen_server:call(?SERVER, {join, ListenerId, self()}).
+join(Module, ListenerId) ->
+    gen_server:call(?SERVER, {join, Module, ListenerId, self()}).
 
 send_data(Data) ->
     gen_server:call(?SERVER, {send_data, Data}).
@@ -53,8 +53,8 @@ init([]) ->
     ets:new(?TABLE, [set, public, named_table, {keypos, #eradio_stream.id}]),
     {ok, #state{}}.
 
-handle_call({join, ListenerId, Pid}, From, State) ->
-    handle_join(ListenerId, Pid, From, State);
+handle_call({join, Module, ListenerId, Pid}, From, State) ->
+    handle_join(Module, ListenerId, Pid, From, State);
 
 handle_call({send_data, Data}, From, State) ->
     handle_send_data(Data, From, State);
@@ -85,21 +85,21 @@ terminate(Reason, _State) ->
 %% internal
 %%
 
-handle_join(ListenerId, Pid, _From, State) ->
+handle_join(Module, ListenerId, Pid, _From, State) ->
     monitor(process, Pid),
-    add_stream(#eradio_stream{id = ListenerId, pid = Pid}),
+    add_stream(#eradio_stream{id = ListenerId, pid = Pid, module = Module}),
     eradio_websocket_manager:send_notify(),
     {reply, ok, State}.
 
 handle_send_data(Data, _From, State) ->
-    [eradio_stream:send_data(Stream, Data) || Stream <- stream_pids()],
+    [Module:send_data(Pid, Data) || {Module, Pid} <- stream_pids()],
     {reply, ok, State}.
 
 handle_listener_ids(_From, State) ->
     {reply, {ok, stream_ids()}, State}.
 
 handle_stream_down(Pid, Reason, State) ->
-    case ets:match_object(?TABLE, #eradio_stream{id = '_', pid = Pid}) of
+    case ets:match_object(?TABLE, #eradio_stream{id = '_', module = '_', pid = Pid}) of
         [Stream] ->
             ets:delete(?TABLE, Stream#eradio_stream.id),
             eradio_websocket_manager:send_notify(),
@@ -109,11 +109,12 @@ handle_stream_down(Pid, Reason, State) ->
     end,
     {noreply, State}.
 
-add_stream(#eradio_stream{id = Id, pid = Pid}=Stream) when is_integer(Id), is_pid(Pid) ->
+add_stream(#eradio_stream{id = Id, module = Module, pid = Pid}=Stream)
+  when is_integer(Id), is_atom(Module), is_pid(Pid) ->
     ets:insert(?TABLE, Stream).
 
 stream_ids() ->
-    ets:select(?TABLE, [{#eradio_stream{id = '$1', pid = '_'}, [], ['$1']}]).
+    ets:select(?TABLE, [{#eradio_stream{id = '$1', module = '_', pid = '_'}, [], ['$1']}]).
 
 stream_pids() ->
-    ets:select(?TABLE, [{#eradio_stream{id = '_', pid = '$1'}, [], ['$1']}]).
+    ets:select(?TABLE, [{#eradio_stream{id = '_', module = '$1', pid = '$2'}, [], [{{'$1', '$2'}}]}]).

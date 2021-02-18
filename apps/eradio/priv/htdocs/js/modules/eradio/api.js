@@ -14,6 +14,9 @@ export async function veto(listenerId) {
 export function notifyWsUri() {
     return "/v1/ws/notify";
 }
+export function streamWsUri(_format, listenerId) {
+    return "/v1/ws/stream?listener_id=" + listenerId;
+}
 export function streamUri(_format, listenerId, timeMs) {
     return "/stream.mp3?listener_id=" + listenerId + "&time=" + timeMs;
 }

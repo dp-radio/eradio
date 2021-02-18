@@ -34,6 +34,10 @@ export function notifyWsUri() {
     return "/v1/ws/notify";
 }
 
+export function streamWsUri(_format: StreamFormat, listenerId: number) {
+    return "/v1/ws/stream?listener_id="+listenerId;
+}
+
 export function streamUri(_format: StreamFormat, listenerId: number, timeMs: number) {
     return "/stream.mp3?listener_id="+listenerId+"&time="+timeMs;
 }

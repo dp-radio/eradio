@@ -32,6 +32,12 @@ init(Request, State) ->
 handle_request(#{path := <<"/v1/ws/notify">>}, _QueryString) ->
     {websocket, eradio_websocket:start_notify_opts()};
 
+handle_request(#{path := <<"/v1/ws/stream">>}, #{<<"listener_id">> := <<ListenerIdBin/binary>>}) ->
+    try erlang:binary_to_integer(ListenerIdBin) of
+        ListenerId ->
+            {websocket, eradio_websocket:start_stream_opts(ListenerId)}
+    catch error:Reason -> {invalid, Reason} end;
+
 handle_request(#{path := <<"/v1/metadata">>, method := <<"GET">>}, _QueryString) ->
     CurrentTrackMap = case eradio_source:player_state() of
                           {ok, PlayerState} -> current_track_response(PlayerState);

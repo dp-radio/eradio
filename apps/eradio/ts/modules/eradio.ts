@@ -10,6 +10,9 @@ const METADATA_REFRESH_INTERVAL = 50;
 class ERadio {
     playerUI: PlayerUI;
 
+    mediaSource: MediaSource | null = null;
+    sourceBuffer: SourceBuffer | null = null;
+
     listenerId: number;
 
     lastMetadataRefresh = 0;
@@ -63,6 +66,28 @@ class ERadio {
         }
     }
 
+    handleStreamWsConnected(_ws: WebSocket) {
+        console.debug('connected to stream websocket');
+    }
+
+    async handleStreamWsEvent(event: Event) {
+        if (event instanceof MessageEvent) {
+            let data = null;
+            if (event.data instanceof Blob) {
+                data = await event.data.arrayBuffer();
+            } else if (event.data instanceof ArrayBuffer) {
+                data = event.data;
+            }
+            if (data != null && this.sourceBuffer != null) {
+                this.sourceBuffer.appendBuffer(data);
+            }
+        } else if (event instanceof CloseEvent) {
+            console.debug('stream websocket closed for reason ' + event.code + ': ' + event.reason);
+        } else {
+            console.debug('error on stream websocket: ', event);
+        }
+    }
+
     playerStalled() {
         console.log("playback stalled...");
         this.tryLoadPlayer();
@@ -72,8 +97,22 @@ class ERadio {
         console.log("playback suspended...");
     }
 
+    mediaSourceOpened(mediaSource: MediaSource) {
+        this.sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg");
+    }
+
     tryLoadPlayer() {
-        this.playerUI.tryLoad(Api.streamUri("mp3", this.listenerId, Date.now()))
+        let url;
+        if ('MediaSource' in window && MediaSource.isTypeSupported("audio/mpeg")) {
+            let mediaSource = new MediaSource();
+            this.mediaSource = mediaSource;
+            url = URL.createObjectURL(mediaSource);
+            mediaSource.addEventListener('sourceopen', _event => this.mediaSourceOpened(mediaSource));
+            WebSocketUtil.connectForever(Api.streamWsUri("mp3", this.listenerId), ws => this.handleStreamWsConnected(ws), event => this.handleStreamWsEvent(event));
+        } else {
+            url = Api.streamUri("mp3", this.listenerId, Date.now());
+        }
+        this.playerUI.tryLoad(url);
     }
 
     scheduleRefreshMetadata() {

@@ -5,7 +5,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_notify_opts/0, start_link/2, send_notify/1, recv/2]).
+-export([start_notify_opts/0, start_stream_opts/1, start_link/2, send_notify/1, send_data/2, recv/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -25,11 +25,18 @@
 start_notify_opts() ->
     notify_websocket.
 
+-spec start_stream_opts(integer()) -> any().
+start_stream_opts(ListenerId) ->
+    {stream_websocket, ListenerId}.
+
 start_link(WebsocketPid, Arg) ->
     gen_server:start_link(?MODULE, {WebsocketPid, Arg}, []).
 
 send_notify(Pid) ->
     gen_server:cast(Pid, send_notify).
+
+send_data(Pid, Data) ->
+    gen_server:cast(Pid, {send_data, Data}).
 
 recv(Pid, Message) ->
     gen_server:call(Pid, {recv, Message}).
@@ -42,6 +49,8 @@ init({WebsocketPid, Arg}) ->
     ?LOG_INFO("websocket ~1000p connected", [WebsocketPid]),
     process_flag(trap_exit, true),
     case Arg of
+        {stream_websocket, ListenerId} ->
+            ok = eradio_stream_manager:join(?MODULE, ListenerId);
         notify_websocket ->
             ok = eradio_websocket_manager:join()
     end,
@@ -57,6 +66,11 @@ handle_call(Request, From, State) ->
 handle_cast(send_notify, State) ->
     websocket_send([{text, jsone:encode(#{action => notify})}], State),
     {noreply, State};
+
+handle_cast({send_data, Data}, State) ->
+    websocket_send([{binary, Data}], State),
+    {noreply, State};
+
 handle_cast(Message, State) ->
     ?LOG_WARNING("unknown cast: ~1000p", [Message]),
     {noreply, State}.
