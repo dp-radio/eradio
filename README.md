@@ -18,7 +18,7 @@ TCP"](https://www.eecg.utoronto.ca/~ashvin/publications/low-latency-tomccap08.pd
 
 ## Building
 #### Prerequisites:
-- Make
+- GNU Make
 - Erlang >= 23
 - `rebar3`
 - `tsc` (Typescript compiler)
@@ -63,8 +63,9 @@ but it is not required.
   [`$ERL_LIBS/eradio/priv/htdocs`](apps/eradio/priv/htdocs).
 
 By default, `$ERL_LIBS/eradio/priv/source` is executed to provide source data on its standard output to broadcast to all
-listeners. The source data must be sent in frames, each preceded by a 32-bit big-endian frame length. The first byte of
-each frame's data specifies the frame's type:
+listeners. The source data must be sent in frames, each preceded by a 32-bit big-endian frame length. Note that since
+frames of source data can be dropped depending on network conditions, the source data itself should be framed such that
+listeners can be recover after missing frames. The first byte of each frame's data specifies the frame's type:
 - Frame type 1: log message. The first byte specifies the log level, and the rest is the log message.
   - Log Level 1: error
   - Log Level 2: warning
@@ -92,6 +93,19 @@ $ erl -remsh eradio@localhost -hidden
 ```
 
 Note that when starting the Erlang remote shell, `$HOME/.erlang.cookie` must match that which `eradio` was started with.
+
+### Reloading code
+
+When connected to the Erlang remote shell, the `gen_cluster_code` module may be used as a convenience to hot-reload
+modified code in `.beam` files:
+
+```
+(eradio@localhost)1> gen_cluster_code:load_all().
+{ok,[eradio_app, eradio_server]}
+```
+
+Note that existing internal state is currently not guaranteed to be compatible with the newly loaded code, which may
+cause crashes or strange behaviour.
 
 ## API
 
