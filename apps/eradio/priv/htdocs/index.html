@@ -7,31 +7,36 @@
     <script type="module" src="js/index.js"></script>
   </head>
   <body>
-    <button id="eradio_play_button">Play</button>
-    <button id="eradio_veto_button">Veto</button>
-    <audio id="eradio_player" preload="none">
-      <source src="data:" type="audio/mpeg"></source>
-    </audio>
-    <br/>
-    <div id="eradio_status">
-      <span class="eradio_status_stopped">Not Playing</span>
-      <span class="eradio_status_loading" style="display: none;">
-        Loading
-        <span class="eradio_status_loading_cycle">.</span>
-        <span class="eradio_status_loading_cycle">..</span>
-        <span class="eradio_status_loading_cycle">...</span>
-      </span>
-      <span class="eradio_status_playing" style="display: none;">
-        Playing <span class="eradio_status_playing_lag" style="display: none;">
-          (<span class="eradio_status_playing_lag_value"></span> seconds behind)
+    <div class="eradio_player">
+      <button id="eradio_play_button">Play</button>
+      <button id="eradio_veto_button">Veto</button>
+      <br/>
+      <audio id="eradio_stream" preload="none">
+        <source src="data:" type="audio/mpeg">
+      </audio>
+      <label for="eradio_volume_slider">Volume</label>
+      <input id="eradio_volume_slider" type="range" min="0" max="100" value="100">
+      <br/>
+      <div id="eradio_status">
+        <span class="eradio_status_stopped">Not Playing</span>
+        <span class="eradio_status_loading" style="display: none;">
+          Loading
+          <span class="eradio_status_loading_cycle">.</span>
+          <span class="eradio_status_loading_cycle">..</span>
+          <span class="eradio_status_loading_cycle">...</span>
         </span>
-      </span>
+        <span class="eradio_status_playing" style="display: none;">
+          Playing <span class="eradio_status_playing_lag" style="display: none;">
+            (<span class="eradio_status_playing_lag_value"></span> seconds behind)
+          </span>
+        </span>
+      </div>
+      <div id="eradio_metadata">
+        <a href="#" class="eradio_metadata_song" style="display: none;"></a>
+        <span class="eradio_metadata_no_song" style="display: none;">No Song Playing</span>
+      </div>
+      <span><span id="eradio_listener_count">0</span> Listeners</span>,
+      <span><span id="eradio_veto_count">0</span> Vetoes</span>
     </div>
-    <div id="eradio_metadata">
-      <a href="#" class="eradio_metadata_song" style="display: none;"></a>
-      <span class="eradio_metadata_no_song" style="display: none;">No Song Playing</span>
-    </div>
-    <span><span id="eradio_listener_count">0</span> Listeners</span>,
-    <span><span id="eradio_veto_count">0</span> Vetoes</span>
   </body>
 </html>

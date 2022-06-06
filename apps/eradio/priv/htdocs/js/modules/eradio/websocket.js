@@ -20,7 +20,12 @@ export async function connectForever(path, connectCallback, handler) {
                 error = await join(websocket);
             }
             catch (ex) {
-                error = ex;
+                if (ex instanceof Error) {
+                    error = ex;
+                }
+                else {
+                    error = new Error("" + ex);
+                }
             }
             handler(error);
         }

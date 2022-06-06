@@ -1,6 +1,6 @@
 const RECONNECT_DELAY = 3000;
 
-export async function connectForever(path: string, connectCallback: (ws: WebSocket) => void, handler: (e: Event) => void): Promise<WebSocket> {
+export async function connectForever(path: string, connectCallback: (ws: WebSocket) => void, handler: (e: Event | Error) => void): Promise<WebSocket> {
     while (true) {
         let websocket;
         try {
@@ -20,7 +20,11 @@ export async function connectForever(path: string, connectCallback: (ws: WebSock
             try {
                 error = await join(websocket);
             } catch (ex) {
-                error = ex;
+                if (ex instanceof Error) {
+                    error = ex;
+                } else {
+                    error = new Error(""+ex);
+                }
             }
 
             handler(error);

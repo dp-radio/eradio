@@ -5,6 +5,7 @@ export { PlayerUI };
 class PlayerUI {
     playButton: HTMLElement;
     vetoButton: HTMLElement;
+    volumeSlider: HTMLInputElement;
     stream: StreamingMediaUI;
     status: StatusUI;
     metadata: MetadataUI;
@@ -12,7 +13,8 @@ class PlayerUI {
     constructor() {
         this.playButton = element('#eradio_play_button', HTMLElement);
         this.vetoButton = element('#eradio_veto_button', HTMLElement);
-        this.stream = new StreamingMediaUI('#eradio_player');
+        this.volumeSlider = element('#eradio_volume_slider', HTMLInputElement);
+        this.stream = new StreamingMediaUI('#eradio_stream');
         this.status = new StatusUI('#eradio_status');
         this.metadata = new MetadataUI('#eradio_metadata');
     }

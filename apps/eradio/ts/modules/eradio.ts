@@ -1,6 +1,6 @@
 import * as Api from './eradio/api.js';
 import * as WebSocketUtil from './eradio/websocket.js';
-
+import { Preferences } from './eradio/preferences.js';
 import { PlayerUI } from './eradio/ui.js';
 
 export { ERadio };
@@ -9,20 +9,28 @@ const METADATA_REFRESH_INTERVAL = 50;
 
 class ERadio {
     playerUI: PlayerUI;
-
-    listenerId: number;
+    preferences: Preferences;
 
     lastMetadataRefresh = 0;
     refreshMetadataTimer: number | null = null;
 
     constructor() {
-        this.listenerId = Math.floor(Math.random() * 4294967296);
         this.playerUI = new PlayerUI();
+        this.preferences = new Preferences();
+    }
+
+    private get listenerId(): number {
+        return this.preferences.listenerId.getOrInsert(() => Math.floor(Math.random() * 4294967296));
     }
 
     async main() {
+        let initialVolume = this.preferences.volume.value ?? this.playerUI.stream.media.volume;
+        this.playerUI.volumeSlider.valueAsNumber = initialVolume * 100.0;
+        this.playerUI.stream.media.volume = initialVolume;
+
         this.playerUI.playButton.onclick = _ => this.tryLoadPlayer();
         this.playerUI.vetoButton.onclick = _ => this.veto();
+        this.playerUI.volumeSlider.onchange = _ => this.changeVolume();
         this.playerUI.stream.media.onstalled = _ => this.playerStalled();
         this.playerUI.stream.media.onsuspend = _ => this.playerSuspended();
         this.playerUI.stream.media.ontimeupdate = _ => this.playerUI.refreshPlayerStatus();
@@ -38,7 +46,7 @@ class ERadio {
         this.refreshMetadata();
     }
 
-    async handleNotifyWsEvent(event: Event) {
+    async handleNotifyWsEvent(event: Event | Error) {
         if (event instanceof MessageEvent) {
             await this.handleNotifyWsMessage(event.data);
         } else if (event instanceof CloseEvent) {
@@ -105,5 +113,11 @@ class ERadio {
 
     async veto() {
         await Api.veto(this.listenerId);
+    }
+
+    changeVolume() {
+        let newVolume = this.playerUI.volumeSlider.valueAsNumber / 100.0;
+        this.preferences.volume.value = newVolume;
+        this.playerUI.stream.media.volume = newVolume;
     }
 }
