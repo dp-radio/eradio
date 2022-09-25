@@ -1,4 +1,5 @@
 -module(eradio_stream_handler).
+-behaviour(cowboy_handler).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -7,6 +8,11 @@
 
 %% cowboy handler callbacks
 -export([init/2, info/3]).
+
+%% ignore "unused exports" here since we can't declare -behaviour(cowboy_loop) above. it technically conflicts with
+%% cowboy_websocket, but is fine since both are derived from cowboy_handler, and it seems there's no way to ignore the
+%% warning.
+-ignore_xref([info/3]).
 
 %%
 %% API

@@ -1,10 +1,12 @@
 -module(eradio_stream_manager).
 -behaviour(gen_server).
+-behaviour(eradio_child).
 
 -include_lib("kernel/include/logger.hrl").
 
 %% API
 -export([child_spec/0, start_link/0, join/1, send_data/1, listener_ids/0]).
+-ignore_xref([start_link/0]).                   % xref doesn't understand the MFA returned by child_spec/0
 
 %% gen_server callbacks
 -export([init/1,

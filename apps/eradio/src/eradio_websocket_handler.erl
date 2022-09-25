@@ -1,5 +1,6 @@
 -module(eradio_websocket_handler).
 -behaviour(cowboy_sub_protocol).
+-behaviour(cowboy_websocket).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -10,7 +11,7 @@
 -export([upgrade/4, upgrade/5]).
 
 %% cowboy websocket callbacks
--export([websocket_init/1, websocket_handle/2, websocket_info/2]).
+-export([init/2, websocket_init/1, websocket_handle/2, websocket_info/2]).
 
 -define(FRAME_SIZE_MAX, 102400).
 -define(IDLE_TIMEOUT_MS, 10000).
@@ -48,6 +49,9 @@ upgrade(Request, Env, _Module, Arg, _Opts) ->
 %%
 %% cowboy websocket callbacks
 %%
+
+init(Request, State) ->
+    eradio_api_handler:init(Request, State).
 
 websocket_init(Arg) ->
     {ok, Pid} = eradio_websocket:start_link(self(), Arg),

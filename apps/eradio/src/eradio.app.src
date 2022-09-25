@@ -7,7 +7,9 @@
    [
     kernel,
     stdlib,
-    cowboy
+    cowboy,
+    ranch,
+    jsone
    ]},
   {env, []},
   {modules, []}

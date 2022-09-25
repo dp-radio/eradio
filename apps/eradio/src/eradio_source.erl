@@ -1,6 +1,7 @@
 -module(eradio_source).
 
 -behaviour(gen_server).
+-behaviour(eradio_child).
 
 -include_lib("kernel/include/logger.hrl").
 -include("eradio_source.hrl").
@@ -10,6 +11,8 @@
          player_state/0, play/0, pause/0, prev/0, next/0,
          veto/1, vetoes/0]).
 -export_type([player_state/0]).
+-ignore_xref([start/0, stop/0, play/0, pause/0, prev/0, next/0]). % unused, but useful in the shell
+-ignore_xref([start_link/0]).                                     % xref doesn't understand the MFA returned by child_spec/0
 
 %% gen_server callbacks
 -export([init/1,
@@ -26,9 +29,9 @@
 -type player_state() :: stopped | {playing, #track{} | unknown}.
 
 -record(state,
-        {source_port = undefined :: port(),
+        {source_port = undefined :: port() | undefined,
          player_state = stopped :: player_state(),
-         current_track = undefined :: #track{} | unknown,
+         current_track = undefined :: #track{} | unknown | undefined,
          vetoes = #{} :: #{eradio_stream:listener_id() => true}}).
 
 %%

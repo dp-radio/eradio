@@ -1,10 +1,12 @@
 -module(eradio_websocket_manager).
 -behaviour(gen_server).
+-behaviour(eradio_child).
 
 -include_lib("kernel/include/logger.hrl").
 
 %% API
 -export([child_spec/0, start_link/0, join/0, send_notify/0]).
+-ignore_xref([start_link/0]).                   % xref doesn't understand the MFA returned by child_spec/0
 
 %% gen_server callbacks
 -export([init/1,

@@ -9,6 +9,10 @@
 %% ranch callbacks
 -export([start_link/3]).
 
+%% private
+-export([tcp_connection_init/3]).
+-ignore_xref([tcp_connection_init/3]).          % referenced by MFA
+
 %%
 %% public API
 %%
@@ -59,17 +63,23 @@ stop() ->
 
 start_link(Ref, ranch_tcp, ProtocolOpts) ->
     Self = self(),
-    Pid = proc_lib:spawn_link(fun () -> tcp_connection_init(Self, Ref, ProtocolOpts) end),
+    Pid = proc_lib:spawn_link(?MODULE, tcp_connection_init, [Self, Ref, ProtocolOpts]),
     {ok, Pid}.
 
 %%
 %% private
 %%
 
+-spec tcp_connection_init(pid(), ranch:ref(), cowboy:opts()) -> no_return().
 tcp_connection_init(Parent, Ref, ProtocolOpts) ->
     {ok, Socket} = ranch:handshake(Ref),
     _ = case maps:get(connection_type, ProtocolOpts, supervisor) of
             worker -> ok;
             supervisor -> process_flag(trap_exit, true)
         end,
-    cowboy_http:init(Parent, Ref, Socket, ranch_tcp, undefined, ProtocolOpts#{eradio_sock => Socket}).
+    cowboy_http_init(Parent, Ref, Socket, ranch_tcp, ProtocolOpts#{eradio_sock => Socket}).
+
+-dialyzer({no_fail_call, cowboy_http_init/5}).
+-spec cowboy_http_init(pid(), ranch:ref(), inet:socket(), module(), cowboy:opts()) -> no_return().
+cowboy_http_init(Parent, Ref, Socket, Module, ProtocolOpts) ->
+    cowboy_http:init(Parent, Ref, Socket, Module, undefined, ProtocolOpts).

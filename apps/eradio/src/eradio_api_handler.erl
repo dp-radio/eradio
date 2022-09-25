@@ -1,4 +1,5 @@
 -module(eradio_api_handler).
+-behaviour(cowboy_handler).
 
 -include_lib("kernel/include/logger.hrl").
 -include("eradio_source.hrl").

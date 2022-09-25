@@ -5,6 +5,8 @@
 %% API
 -export([start/0, stop/0, restart/0]).
 -export([application/0, listen_ip/0, listen_port/0, sndbuf/0, webroot/0]).
+-ignore_xref([application/0]).                  % unused, but useful
+-ignore_xref([restart/0, start/0, stop/0]).     % unused, but useful in the shell
 
 %% application callbacks
 -export([start/2, stop/1]).
