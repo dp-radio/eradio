@@ -1,0 +1,65 @@
+name: gh-pages
+on:
+  push:
+    branches:
+      - master
+      - edocs
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+jobs:
+  gh-pages:
+    name:    gh-pages
+    runs-on: ubuntu-latest
+    environment:
+      name: gh-pages
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: compile sources
+        run: rebar3 compile
+
+      - name: generate edocs
+        run:  |
+          apps=_build/default/lib
+          for app in $(cd $apps; ls -1); do
+            echo building edocs for $app
+            ERL_LIBS=$apps erl -noshell -run edoc_run application $app '[{app_default, "/eradio"}, {preprocess, true}, {private, true}, {todo, true}, {sort_functions, false}, {pretty_printer, erl_pp}]'
+            mkdir -p docs/$app
+            mv $apps/$app/doc docs/$app/
+          done
+          mv docs/eradio/doc/* docs/
+          rm -r docs/eradio
+
+      - name: setup github pages
+        uses: actions/configure-pages@v2
+
+      - name: upload docs artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs
+
+      - name: deploy docs to github pages
+        uses: actions/deploy-pages@v1
+
+      - name: run integration tests (common_test)
+        run:  |
+          rebar3 ct || true
+          mv _build/test/logs docs/ct
+
+      - name: upload docs artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs
+
+      - name: deploy integration test reports to github pages
+        uses: actions/deploy-pages@v1

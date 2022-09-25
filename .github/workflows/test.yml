@@ -1,0 +1,28 @@
+name: test
+on: [push]
+
+defaults:
+  run:
+    shell: bash
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: compile
+        run:  rebar3 compile
+
+      - name: type check (dialyzer)
+        run:  rebar3 dialyzer
+
+      - name: run cross-reference analysis (xref)
+        run:  rebar3 xref
+
+      - name: run unit tests (eunit)
+        run:  rebar3 eunit
+
+      - name: run integration tests (common_test)
+        run:  rebar3 ct

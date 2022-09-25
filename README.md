@@ -16,7 +16,21 @@ application-controllable, `eradio` tries to query the current amount of data in 
 sending until the buffers have emptied. This technique has been analyzed in ["Low-Latency Adaptive Streaming over
 TCP"](https://www.eecg.utoronto.ca/~ashvin/publications/low-latency-tomccap08.pdf) by Goel et. al.
 
-## Building
+## Development
+
+[Internal API Documentation](https://dp-radio.github.io/eradio/)  
+[Integration Test Reports (`common_test`)](https://dp-radio.github.io/eradio/ct/)
+
+## Building with docker
+
+Building with the [`container-build`](https://github.com/container-build/container-build) script requires python3 and
+docker, and builds the project within the [`erlang:latest`](https://hub.docker.com/_/erlang/) Docker image.
+
+```
+$ scripts/container-build make
+```
+
+## Building without docker
 #### Prerequisites:
 - GNU Make
 - Erlang >= 23
@@ -27,7 +41,8 @@ TCP"](https://www.eecg.utoronto.ca/~ashvin/publications/low-latency-tomccap08.pd
 $ make all
 ```
 
-The compiled Typescript is checked into source control at [`apps/eradio/priv/htdocs/js/`](apps/eradio/priv/htdocs/js/), so it only needs to be compiled if it has changed. To compile only the Typescript code:
+The compiled Typescript is checked into source control at [`apps/eradio/priv/htdocs/js/`](apps/eradio/priv/htdocs/js/),
+so it only needs to be compiled if it has changed. To compile only the Typescript code:
 
 ```
 $ make ts
@@ -39,7 +54,37 @@ To compile only the Erlang and C code:
 $ rebar3 compile
 ```
 
-## Running
+## Running with docker
+
+Firstly, ensure that the Erlang OTP version used to build the project closely matches that of the
+[`erlang:latest`](https://hub.docker.com/_/erlang/) image, which is the image the included [`Dockerfile`](Dockerfile)
+uses.
+
+To run the server in the background:
+
+```
+$ container=$(docker run -p 8080:8080 --detach $(docker build -q .))
+```
+
+To start a remote Erlang shell on the node:
+
+```
+$ docker exec -it $container erl -remsh eradio@localhost -hidden
+```
+
+To re-compile and hot-load code changes to modules on the running node (the `eradio_api_handler` module in this
+example):
+
+```
+$ docker cp apps $container:/home/erlang/
+$ docker exec -u root:root $container chown -R erlang:erlang /home/erlang/apps
+$ docker exec -it $container erl -remsh eradio@localhost -hidden
+(eradio@localhost)1> l(eradio_api_handler).
+```
+
+Only hot-load code when you know the new code will be compatible with any running state in the system.
+
+## Running without docker
 #### Prerequisites:
 - Erlang (same version as built with)
 
