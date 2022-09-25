@@ -18,7 +18,7 @@ start() ->
 
     ListenIpOpts = case eradio_app:listen_ip() of
                        undefined      -> [];
-                       {ok, ListenIp} -> [{listen_ip, ListenIp}]
+                       {ok, ListenIp} -> [{ip, ListenIp}]
                    end,
     Port = eradio_app:listen_port(),
     SendBuffer = eradio_app:sndbuf(),
